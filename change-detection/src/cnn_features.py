@@ -15,7 +15,6 @@ from align import warp
 
 vgg = None
 
-
 # Loads VGG16 up to layer relu3_3 (downloads ~528 MB the first time).
 def load_vgg():
     global vgg
@@ -25,7 +24,6 @@ def load_vgg():
         vgg = model.features[:16]
         vgg.eval()
     return vgg
-
 
 # Feature maps of a BGR image
 def extract_features(im):
@@ -37,7 +35,6 @@ def extract_features(im):
     rgb[0, 2] = (im[:, :, 0] - 0.406) / 0.225   # blue
     features = load_vgg()(torch.tensor(rgb, dtype=torch.float32))
     return features[0].numpy()
-
 
 # the cosine similarity of the feature vectors at each location
 def cnn_difference(before, after):
@@ -54,7 +51,6 @@ def cnn_difference(before, after):
     scale = np.array([[small_width / width, 0.0, 0.0], [0.0, small_height / height, 0.0], [0.0, 0.0, 1.0]])
     distance, _ = warp(distance, scale, height, width)
     return np.clip(distance, 0, 1)
-
 
 if __name__ == "__main__":
     im = (np.random.rand(600, 800, 3) * 255).astype(np.uint8)

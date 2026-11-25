@@ -16,10 +16,8 @@ from pipeline import default_settings, load_pair, run_alignment, run_detection, 
 camera_number = 0
 pair_name = ""
 
-
 def nothing(value):
     pass
-
 
 # Waits 30 ms for a key and returns it as a letter
 def get_key():
@@ -28,14 +26,12 @@ def get_key():
         return ""
     return chr(key % 256)
 
-
 # Reads a few frames to avoid camera buffer issues
 def capture(camera):
     for i in range(5):
         ok, frame = camera.read()
     frame = shrink_to_width(frame, 800)
     return frame
-
 
 # Shows all stages plus one line with the current settings
 def show(data, settings):
@@ -54,7 +50,6 @@ def show(data, settings):
     cv2.imshow("Change Detection", panel)
     return panel
 
-
 # Saves the panel and the before/after images
 def save(panel, before, after):
     number = 1
@@ -66,7 +61,6 @@ def save(panel, before, after):
     cv2.imwrite("data/captured/live_" + str(number) + "/before.png", before)
     cv2.imwrite("data/captured/live_" + str(number) + "/after.png", after)
     print("Saved demo_" + str(number) + ".png")
-
 
 def main():
     settings = default_settings()
@@ -172,7 +166,6 @@ def main():
     if camera is not None:
         camera.release()
     cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()

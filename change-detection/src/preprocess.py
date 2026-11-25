@@ -1,5 +1,5 @@
 """
-[Names]
+Ramon Vazquez, Nathan Pebler
 Professor Tang
 CS 415 Final Project
 11/24/26
@@ -94,7 +94,6 @@ def prepare_dataset():
         cv2.imwrite("data/pairs/" + names[i] + "/before.png", shrink_to_width(before, 1100))
         cv2.imwrite("data/pairs/" + names[i] + "/after.png", shrink_to_width(after, 1100))
         print("Prepared " + names[i])
-
-
+        
 if __name__ == "__main__":
     prepare_dataset()

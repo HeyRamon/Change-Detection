@@ -18,7 +18,6 @@ def add_boxes(mask, boxes):
         x, y, w, h = boxes[i]
         mask[y:y + h, x:x + w] = 255
 
-
 if __name__ == "__main__":
     names = read_pairs_csv(0)
     for i in range(len(names)):

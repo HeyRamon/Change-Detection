@@ -18,7 +18,6 @@ from segment import segment_changes, erode
 
 thresholds = {"gray": 0.15, "color": 0.20, "sobel": 0.30, "canny": 0.40, "cnn": 0.35}
 
-
 def default_settings():
     return {"sigma": 1.0,
             "equalize": False,
@@ -31,12 +30,10 @@ def default_settings():
             "close_size": 15,
             "min_area": 400}
 
-
 def load_pair(name):
     before = cv2.imread("data/pairs/" + name + "/before.png")
     after = cv2.imread("data/pairs/" + name + "/after.png")
     return before, after
-
 
 # preprocess, align and warp the after image onto the before image.
 def run_alignment(before, after, s):
@@ -71,7 +68,6 @@ def run_alignment(before, after, s):
             "matches": matches, "inliers": inliers,
             "align_time": align_time, "warp_time": warp_time}
 
-
 # change map and segmentation
 def run_detection(data, s):
     start = time.time()
@@ -94,17 +90,14 @@ def run_detection(data, s):
     data["settings"] = s
     return data
 
-
 def run_pipeline(before, after, s):
     data = run_alignment(before, after, s)
     return run_detection(data, s)
-
 
 def put_label(im, text, x, y, width, scale=0.5):
     height = int(40 * scale)
     im[y:y + height, x:x + width] = 0
     cv2.putText(im, text, (x + 5, y + int(30 * scale)), cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), 1)
-
 
 # RANSAC inlier matches as white lines
 def draw_matches(data):
@@ -121,7 +114,6 @@ def draw_matches(data):
     return cv2.drawMatches(data["before"], data["keypoints1"], data["after"], data["keypoints2"], shown_matches, None,
                            matchColor=(255, 255, 255), flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
 
-
 # Red = before, cyan = aligned after, grey is in the middle.
 def draw_overlay(data):
     out = np.zeros(data["before_color"].shape)
@@ -129,7 +121,6 @@ def draw_overlay(data):
     out[:, :, 1] = data["warped_gray"]
     out[:, :, 0] = data["warped_gray"]
     return out.astype(np.uint8)
-
 
 # Aligned after image with a red box around each changed region
 def draw_result(data):
@@ -142,7 +133,6 @@ def draw_result(data):
         cv2.line(out, (x2, y2), (x1, y2), (0, 0, 255), 2)
         cv2.line(out, (x1, y2), (x1, y1), (0, 0, 255), 2)
     return out
-
 
 # titles
 def stage_images(data):
@@ -185,7 +175,6 @@ def make_panel(data, tile_width=400, tile_height=300):
         put_label(panel, title, left, top, box_width)
     return panel
 
-
 # Saves in matplotlib
 def show_figure(data):
     images = stage_images(data)
@@ -196,7 +185,6 @@ def show_figure(data):
         plt.title(images[i][0], fontsize=8)
         plt.axis("off")
     plt.show()
-
 
 if __name__ == "__main__":
     name = sys.argv[1]

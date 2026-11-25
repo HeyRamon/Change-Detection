@@ -7,7 +7,6 @@ CS 415 Final Project
 import cv2
 import numpy as np
 
-
 # Otsu threshold: the t that maximizes the between-class variance.
 def otsu_threshold(change, valid):
     levels = (change[valid] * 255).astype(int)
@@ -32,25 +31,21 @@ def otsu_threshold(change, valid):
             best_t = t
     return best_t / 255
 
-
 # Number of True pixels in each size x size neighborhood.
 def count_neighbors(mask, size):
     kernel = np.ones((size, size))
     counts = cv2.filter2D(mask.astype(float), -1, kernel, borderType=cv2.BORDER_CONSTANT)
     return counts
 
-
 # Erosion: a pixel stays True only if its whole neighborhood is True.
 def erode(mask, size):
     counts = count_neighbors(mask, size)
     return counts > size * size - 0.5
 
-
 # Dilation: a pixel becomes True if any pixel in its neighborhood is True.
 def dilate(mask, size):
     counts = count_neighbors(mask, size)
     return counts > 0.5
-
 
 # Opening removes small noise; closing fills small holes.
 def opening(mask, size):
@@ -58,12 +53,10 @@ def opening(mask, size):
     mask = dilate(mask, size)
     return mask
 
-
 def closing(mask, size):
     mask = dilate(mask, size)
     mask = erode(mask, size)
     return mask
-
 
 # Labels 8-connected regions with a stack flood fill (like edge_linking in MP2).
 # Returns the label image and a list of (area, x, y, w, h) per region.
@@ -97,7 +90,6 @@ def connected_components(mask):
         h = max(rows) - y + 1
         regions.append((area, x, y, w, h))
     return labels, regions
-
 
 # Threshold -> opening -> closing -> drop small regions. Returns mask, boxes, threshold.
 def segment_changes(change, valid, threshold, use_otsu, open_size, close_size, min_area):
