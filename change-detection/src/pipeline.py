@@ -4,9 +4,6 @@ Professor Tang
 CS 415 Final Project
 11/24/26
 """
-import sys
-import time
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,11 +13,10 @@ from align import align_images, warp, identity_matrix
 from detect import compute_change_map
 from segment import segment_changes, erode
 
-thresholds = {"gray": 0.15, "color": 0.20, "sobel": 0.30, "canny": 0.40, "cnn": 0.35}
+thresholds = {"gray": 0.15, "color": 0.20, "sobel": 0.30, "canny": 0.40}
 
 def default_settings():
     return {"sigma": 1.0,
-            "equalize": False,
             "use_alignment": True,
             "feature_method": "sift",
             "detect_method": "color",
@@ -35,31 +31,40 @@ def load_pair(name):
     after = cv2.imread("data/pairs/" + name + "/after.png")
     return before, after
 
+# seconds since start
+def seconds_since(start):
+    return (cv2.getTickCount() - start) / cv2.getTickFrequency()
+
 # preprocess, align and warp the after image onto the before image.
-def run_alignment(before, after, s):
-    start = time.time()
-    before_color, before_gray = preprocess(before, s["sigma"], s["equalize"])
-    after_color, after_gray = preprocess(after, s["sigma"], s["equalize"])
+def run_alignment(before, after, settings):
+    start = cv2.getTickCount()
+    before_color, before_gray = preprocess(before, settings["sigma"])
+    after_color, after_gray = preprocess(after, settings["sigma"])
 
-    if s["use_alignment"]:
-        H, ok, keypoints1, keypoints2, matches, inliers = align_images(before_gray, after_gray, s["feature_method"])
+    if settings["use_alignment"]:
+        H, ok, keypoints1, keypoints2, matches, inliers = align_images(before_gray, after_gray, settings["feature_method"])
     else:
-        H, ok, keypoints1, keypoints2, matches, inliers = identity_matrix(), True, [], [], [], np.zeros(0)
-    align_time = time.time() - start
+        H = identity_matrix()
+        ok = True
+        keypoints1 = []
+        keypoints2 = []
+        matches = []
+        inliers = np.zeros(0, dtype='bool')
+    align_time = seconds_since(start)
 
-    start = time.time()
+    start = cv2.getTickCount()
     height, width = before_gray.shape
     warped_gray, valid = warp(after_gray, H, height, width)
     warped_color = np.zeros(before_color.shape)
     for c in range(3):
         warped_color[:, :, c], valid = warp(after_color[:, :, c], H, height, width)
-    valid = erode(valid, 11)
+    valid = erode(valid, 21)
 
     # outside the valid area, copy the before pixels so the border is never a change
     warped_gray[valid == False] = before_gray[valid == False]
     warped_color[valid == False] = before_color[valid == False]
     warped_color = np.clip(warped_color, 0, 255).astype(np.uint8)
-    warp_time = time.time() - start
+    warp_time = seconds_since(start)
 
     return {"before": before, "after": after,
             "before_color": before_color, "before_gray": before_gray, "after_gray": after_gray,
@@ -69,30 +74,31 @@ def run_alignment(before, after, s):
             "align_time": align_time, "warp_time": warp_time}
 
 # change map and segmentation
-def run_detection(data, s):
-    start = time.time()
-    data["change"] = compute_change_map(s["detect_method"], data["before_color"], data["before_gray"],
+def run_detection(data, settings):
+    start = cv2.getTickCount()
+    data["change"] = compute_change_map(settings["detect_method"], data["before_color"], data["before_gray"],
                                         data["warped_color"], data["warped_gray"], data["valid"])
-    data["detect_time"] = time.time() - start
+    data["detect_time"] = seconds_since(start)
 
-    threshold = s["threshold"]
-    if threshold is None:
-        threshold = thresholds[s["detect_method"]]
+    if settings["threshold"] is None:
+        threshold = thresholds[settings["detect_method"]]
+    else:
+        threshold = settings["threshold"]
 
-    start = time.time()
-    mask, boxes, threshold = segment_changes(data["change"], data["valid"], threshold, s["use_otsu"],
-                                             s["open_size"], s["close_size"], s["min_area"])
+    start = cv2.getTickCount()
+    mask, boxes, threshold = segment_changes(data["change"], data["valid"], threshold, settings["use_otsu"],
+                                             settings["open_size"], settings["close_size"], settings["min_area"])
     data["mask"] = mask
     data["boxes"] = boxes
     data["threshold"] = threshold
-    data["segment_time"] = time.time() - start
+    data["segment_time"] = seconds_since(start)
     data["total_time"] = data["align_time"] + data["warp_time"] + data["detect_time"] + data["segment_time"]
-    data["settings"] = s
+    data["settings"] = settings
     return data
 
-def run_pipeline(before, after, s):
-    data = run_alignment(before, after, s)
-    return run_detection(data, s)
+def run_pipeline(before, after, settings):
+    data = run_alignment(before, after, settings)
+    return run_detection(data, settings)
 
 def put_label(im, text, x, y, width, scale=0.5):
     height = int(40 * scale)
@@ -127,7 +133,10 @@ def draw_result(data):
     out = data["warped_color"].copy()
     for i in range(len(data["boxes"])):
         x, y, w, h = data["boxes"][i]
-        x1, y1, x2, y2 = int(x), int(y), int(x + w), int(y + h)
+        x1 = int(x)
+        y1 = int(y)
+        x2 = int(x + w)
+        y2 = int(y + h)
         cv2.line(out, (x1, y1), (x2, y1), (0, 0, 255), 2)
         cv2.line(out, (x2, y1), (x2, y2), (0, 0, 255), 2)
         cv2.line(out, (x2, y2), (x1, y2), (0, 0, 255), 2)
@@ -136,10 +145,11 @@ def draw_result(data):
 
 # titles
 def stage_images(data):
-    s = data["settings"]
+    settings = data["settings"]
     num_inliers = int(np.sum(data["inliers"]))
-    match_title = s["feature_method"] + ": " + str(len(data["matches"])) + " matches, " + str(num_inliers) + " inliers"
-    if data["align_ok"] == False:
+    if data["align_ok"]:
+        match_title = settings["feature_method"] + ": " + str(len(data["matches"])) + " matches, " + str(num_inliers) + " inliers"
+    else:
         match_title = "ALIGNMENT FAILED"
     change = (data["change"] * 255).astype(np.uint8)
     mask = data["mask"].astype(np.uint8) * 255
@@ -147,7 +157,7 @@ def stage_images(data):
             ["After", data["after"]],
             [match_title, draw_matches(data)],
             ["Overlay (red = before, cyan = after)", draw_overlay(data)],
-            ["Change map: " + s["detect_method"], cv2.cvtColor(change, cv2.COLOR_GRAY2BGR)],
+            ["Change map: " + settings["detect_method"], cv2.cvtColor(change, cv2.COLOR_GRAY2BGR)],
             ["Mask (threshold " + str(round(data["threshold"], 2)) + ")", cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)],
             ["Result: " + str(len(data["boxes"])) + " regions", draw_result(data)]]
 
@@ -160,7 +170,7 @@ def make_panel(data, tile_width=400, tile_height=300):
     for i in range(len(images)):
         title = images[i][0]
         im = images[i][1]
-        height, width, _ = im.shape
+        height, width, channels = im.shape
         box_width = widths[i] * tile_width
 
         # keep every step-th pixel so the image fits under its 20 px title bar
@@ -177,17 +187,12 @@ def make_panel(data, tile_width=400, tile_height=300):
 
 # Saves in matplotlib
 def show_figure(data):
-    images = stage_images(data)
-    plt.figure(figsize=(16, 6.5))
-    for i in range(len(images)):
-        plt.subplot(2, 4, i + 1)
-        plt.imshow(images[i][1][:, :, ::-1])  # BGR -> RGB
-        plt.title(images[i][0], fontsize=8)
-        plt.axis("off")
+    panel = make_panel(data)
+    plt.imshow(panel[:, :, ::-1])  # BGR -> RGB
     plt.show()
 
 if __name__ == "__main__":
-    name = sys.argv[1]
+    name = "desk01"
     before, after = load_pair(name)
     data = run_pipeline(before, after, default_settings())
 
